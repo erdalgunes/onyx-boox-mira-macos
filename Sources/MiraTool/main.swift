@@ -19,6 +19,7 @@ func printUsage() {
                       temp morning  - Cool temperature (more blue light)
                       temp evening  - Warm temperature (less blue light)
                       temp night    - Very warm temperature
+                      temp reset    - Reset to normal colors
                       temp status   - Show current temperature settings
       help          Show this help message
     
@@ -41,7 +42,7 @@ guard let command = arguments.first else {
 }
 
 let manager = MiraManager()
-let nightShift = NightShiftCLI()
+let betterDisplay = BetterDisplayManager()
 
 switch command.lowercased() {
 case "start":
@@ -62,16 +63,22 @@ case "temp":
     
     switch subCommand {
     case "auto":
-        nightShift.setColorTemperatureForCurrentTime()
+        betterDisplay.autoAdjustColorTemperature()
         
     case "morning":
-        nightShift.disableNightShift()
+        betterDisplay.setColorTemperature(.morning)
         
-    case "evening", "night":
-        nightShift.enableNightShift()
+    case "evening":
+        betterDisplay.setColorTemperature(.evening)
+        
+    case "night":
+        betterDisplay.setColorTemperature(.night)
+        
+    case "reset":
+        betterDisplay.resetColorTemperature()
         
     case "status":
-        nightShift.showDetailedStatus()
+        betterDisplay.showDetailedStatus()
         
     default:
         print("Error: Unknown temp command '\(subCommand)'")
