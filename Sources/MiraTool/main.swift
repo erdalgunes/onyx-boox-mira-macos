@@ -1,6 +1,6 @@
 import Foundation
 
-let version = "1.0.0"
+let version = "1.1.0"
 
 func printUsage() {
     print("""
@@ -14,6 +14,12 @@ func printUsage() {
       start         Prevent display and system sleep
       stop          Stop preventing sleep
       status        Show current status and connected displays
+      temp          Color temperature commands:
+                      temp auto     - Auto-adjust based on time of day
+                      temp morning  - Cool temperature (more blue light)
+                      temp evening  - Warm temperature (less blue light)
+                      temp night    - Very warm temperature
+                      temp status   - Show current temperature settings
       help          Show this help message
     
     Options:
@@ -35,6 +41,7 @@ guard let command = arguments.first else {
 }
 
 let manager = MiraManager()
+let nightShift = NightShiftCLI()
 
 switch command.lowercased() {
 case "start":
@@ -45,6 +52,32 @@ case "stop":
     
 case "status":
     manager.checkStatus()
+    
+case "temp":
+    guard let subCommand = arguments.dropFirst().first?.lowercased() else {
+        print("Error: temp command requires a subcommand")
+        print("Use: mira temp auto|morning|evening|night|status")
+        exit(1)
+    }
+    
+    switch subCommand {
+    case "auto":
+        nightShift.setColorTemperatureForCurrentTime()
+        
+    case "morning":
+        nightShift.disableNightShift()
+        
+    case "evening", "night":
+        nightShift.enableNightShift()
+        
+    case "status":
+        nightShift.showDetailedStatus()
+        
+    default:
+        print("Error: Unknown temp command '\(subCommand)'")
+        print("Use: mira temp auto|morning|evening|night|status")
+        exit(1)
+    }
     
 case "help", "--help", "-h":
     printUsage()
