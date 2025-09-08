@@ -1,6 +1,7 @@
 import Foundation
 import CoreGraphics
 import IOKit
+import AppKit
 
 class MiraManager {
     private var powerAssertion: PowerAssertion?
