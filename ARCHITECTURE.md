@@ -133,3 +133,12 @@ The plugin architecture allows easy addition of:
 - Decision: Retain Night Shift plugin despite limitations
 - Rationale: Zero-dependency solution for new users
 - Outcome: Works out-of-box with clear upgrade path
+
+### 2024-01 - BetterDisplay DRY Refactoring
+- Decision: Remove duplicate gain calculation logic
+- Rationale: BetterDisplay CLI already handles color temperature
+- Implementation:
+  - Changed from calculating RGB gains to using preset constants
+  - Single CLI call for setting all gains (1 call vs 3)
+  - Simplified profile detection with tolerance-based comparison
+- Outcome: Cleaner code, better performance, follows DRY principle

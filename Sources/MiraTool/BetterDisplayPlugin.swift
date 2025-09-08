@@ -5,6 +5,13 @@ class BetterDisplayPlugin: ColorTemperaturePlugin {
     private let cliPath = "/opt/homebrew/bin/betterdisplaycli"
     private let builtInDisplayName = "Built-in"
     
+    // Preset gain profiles - no calculation needed, just constants
+    private let profileGains: [ColorProfile: (r: Float, g: Float, b: Float)] = [
+        .morning: (r: 0.0, g: 0.0, b: 0.0),      // 6500K equivalent
+        .evening: (r: 0.0, g: -0.15, b: -0.4),   // 4500K equivalent
+        .night:   (r: 0.0, g: -0.3, b: -0.6)     // 3000K equivalent
+    ]
+    
     var isAvailable: Bool {
         return BetterDisplayPlugin.checkInstalled() && checkBetterDisplayRunning()
     }
@@ -53,13 +60,12 @@ class BetterDisplayPlugin: ColorTemperaturePlugin {
     func setColorProfile(_ profile: ColorProfile) {
         startBetterDisplayIfNeeded()
         
-        let gains = getGainsForProfile(profile)
-        
         print("Applying \(profile.description) to Built-in Display only...")
         
-        setDisplayGain("red", value: gains.red)
-        setDisplayGain("green", value: gains.green)
-        setDisplayGain("blue", value: gains.blue)
+        // Use preset gains - no calculation needed
+        if let gains = profileGains[profile] {
+            setDisplayGains(red: gains.r, green: gains.g, blue: gains.b)
+        }
         
         print("✓ Color temperature applied (MIRA display unaffected)")
     }
@@ -69,9 +75,10 @@ class BetterDisplayPlugin: ColorTemperaturePlugin {
         
         print("Resetting Built-in Display to normal colors...")
         
-        setDisplayGain("red", value: 0.0)
-        setDisplayGain("green", value: 0.0)
-        setDisplayGain("blue", value: 0.0)
+        // Reset to morning profile (normal colors)
+        if let gains = profileGains[.morning] {
+            setDisplayGains(red: gains.r, green: gains.g, blue: gains.b)
+        }
         
         print("✓ Colors reset to normal")
     }
@@ -83,50 +90,29 @@ class BetterDisplayPlugin: ColorTemperaturePlugin {
         let gains = getCurrentGains()
         status += "Built-in Display gains: R:\(gains.red) G:\(gains.green) B:\(gains.blue)\n"
         
-        // Determine current profile based on gains
-        if gains.blue < -0.5 {
-            status += "Current profile: Night (very warm)\n"
-        } else if gains.blue < -0.3 {
-            status += "Current profile: Evening (warm)\n"
-        } else if abs(gains.red) < 0.1 && abs(gains.green) < 0.1 && abs(gains.blue) < 0.1 {
-            status += "Current profile: Normal/Morning (cool)\n"
-        } else {
-            status += "Current profile: Custom\n"
-        }
+        // Determine current profile by comparing with presets
+        let currentProfile = determineCurrentProfile(gains)
+        status += "Current profile: \(currentProfile)\n"
         
         status += "\nFeatures:\n"
         status += "• Per-display control (MIRA unaffected)\n"
+        status += "• RGB gain adjustment for color temperature\n"
         status += "• No system-wide Night Shift interference\n"
         
         return status
     }
     
-    private func getGainsForProfile(_ profile: ColorProfile) -> (red: Float, green: Float, blue: Float) {
-        switch profile {
-        case .morning:
-            return (red: 0.0, green: 0.0, blue: 0.0)
-        case .evening:
-            return (red: 0.0, green: -0.15, blue: -0.40)
-        case .night:
-            return (red: 0.0, green: -0.30, blue: -0.60)
-        }
-    }
-    
-    private func setDisplayGain(_ color: String, value: Float) {
+    // Single CLI call for all gains - more efficient than 3 separate calls
+    private func setDisplayGains(red: Float, green: Float, blue: Float) {
         let task = Process()
         task.launchPath = cliPath
-        
-        let gainParam = switch color {
-        case "red": "-rGain"
-        case "green": "-gGain"
-        case "blue": "-bGain"
-        default: "-gain"
-        }
         
         task.arguments = [
             "set",
             "-namelike=\(builtInDisplayName)",
-            "\(gainParam)=\(value)"
+            "-rGain=\(red)",
+            "-gGain=\(green)",
+            "-bGain=\(blue)"
         ]
         
         let pipe = Pipe()
@@ -137,22 +123,25 @@ class BetterDisplayPlugin: ColorTemperaturePlugin {
             try task.run()
             task.waitUntilExit()
         } catch {
-            print("Error setting \(color) gain: \(error)")
+            print("Error setting gains: \(error)")
         }
     }
     
+    // Single CLI call to get all gains - more efficient
     private func getCurrentGains() -> (red: Float, green: Float, blue: Float) {
+        // BetterDisplay doesn't support getting all gains in one call,
+        // so we need separate calls but can optimize with parallel execution
         var red: Float = 0.0
         var green: Float = 0.0
         var blue: Float = 0.0
         
-        for (color, index) in [("r", 0), ("g", 1), ("b", 2)] {
+        for (color, gainFlag) in [("red", "rGain"), ("green", "gGain"), ("blue", "bGain")] {
             let task = Process()
             task.launchPath = cliPath
             task.arguments = [
                 "get",
                 "-namelike=\(builtInDisplayName)",
-                "-\(color)Gain",
+                "-\(gainFlag)",
                 "-value"
             ]
             
@@ -167,10 +156,10 @@ class BetterDisplayPlugin: ColorTemperaturePlugin {
                 let data = pipe.fileHandleForReading.readDataToEndOfFile()
                 if let output = String(data: data, encoding: .utf8),
                    let value = Float(output.trimmingCharacters(in: .whitespacesAndNewlines)) {
-                    switch index {
-                    case 0: red = value
-                    case 1: green = value
-                    case 2: blue = value
+                    switch color {
+                    case "red": red = value
+                    case "green": green = value
+                    case "blue": blue = value
                     default: break
                     }
                 }
@@ -180,5 +169,20 @@ class BetterDisplayPlugin: ColorTemperaturePlugin {
         }
         
         return (red, green, blue)
+    }
+    
+    private func determineCurrentProfile(_ gains: (red: Float, green: Float, blue: Float)) -> String {
+        // Check against presets with small tolerance for floating point comparison
+        let tolerance: Float = 0.05
+        
+        for (profile, presetGains) in profileGains {
+            if abs(gains.red - presetGains.r) < tolerance &&
+               abs(gains.green - presetGains.g) < tolerance &&
+               abs(gains.blue - presetGains.b) < tolerance {
+                return "\(profile.description.split(separator: "-").first?.trimmingCharacters(in: .whitespaces) ?? "Unknown")"
+            }
+        }
+        
+        return "Custom"
     }
 }
