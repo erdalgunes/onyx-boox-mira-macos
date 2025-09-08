@@ -42,7 +42,7 @@ guard let command = arguments.first else {
 }
 
 let manager = MiraManager()
-let betterDisplay = BetterDisplayManager()
+let pluginManager = PluginManager.shared
 
 switch command.lowercased() {
 case "start":
@@ -63,22 +63,25 @@ case "temp":
     
     switch subCommand {
     case "auto":
-        betterDisplay.autoAdjustColorTemperature()
+        pluginManager.autoAdjust()
         
     case "morning":
-        betterDisplay.setColorTemperature(.morning)
+        pluginManager.applyColorProfile(.morning)
         
     case "evening":
-        betterDisplay.setColorTemperature(.evening)
+        pluginManager.applyColorProfile(.evening)
         
     case "night":
-        betterDisplay.setColorTemperature(.night)
+        pluginManager.applyColorProfile(.night)
         
     case "reset":
-        betterDisplay.resetColorTemperature()
+        pluginManager.resetColors()
         
     case "status":
-        betterDisplay.showDetailedStatus()
+        pluginManager.showStatus()
+        
+    case "plugins":
+        pluginManager.listPlugins()
         
     default:
         print("Error: Unknown temp command '\(subCommand)'")

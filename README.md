@@ -14,12 +14,18 @@ A native macOS command-line tool to prevent sleep mode when using Onyx Boox Mira
 
 ## Installation
 
-### Quick Install
+### Via Homebrew (Recommended)
+
+```bash
+brew tap erdalgunes/mira
+brew install mira
+```
+
+### From Source
 
 ```bash
 git clone https://github.com/erdalgunes/onyx-boox-mira-macos.git
 cd onyx-boox-mira-macos
-chmod +x install.sh
 ./install.sh
 ```
 
@@ -106,12 +112,24 @@ When started, it creates two assertions:
 2. `kIOPMAssertionTypeNoDisplaySleep` - Prevents display sleep
 
 ### Color Temperature Control
-The tool adjusts color temperature based on time of day:
-- **Morning (6AM-6PM)**: Disabled Night Shift for more blue light (better alertness)
-- **Evening (6PM-10PM)**: Moderate Night Shift for warmer colors
-- **Night (10PM-6AM)**: Strong Night Shift for minimal blue light (better sleep)
 
-This works by modifying the CoreBrightness preferences and only affects your internal display, leaving the Mira e-ink display unchanged.
+The tool uses a plugin architecture for flexible color temperature management:
+
+#### BetterDisplay Plugin (Recommended)
+- Per-display control - only affects built-in display
+- Keeps Mira e-ink display completely unaffected
+- Install: `brew install --cask betterdisplay`
+- Auto-detected when available
+
+#### Night Shift Plugin (Fallback)
+- Built into macOS, no dependencies
+- System-wide effect (affects all displays)
+- Automatically used if BetterDisplay is not installed
+
+Time-based profiles:
+- **Morning (6AM-6PM)**: Cool temperature for alertness
+- **Evening (6PM-10PM)**: Warm temperature to reduce eye strain
+- **Night (10PM-6AM)**: Very warm for better sleep
 
 ## Requirements
 

@@ -1,32 +1,26 @@
 #!/bin/bash
 
+# Mira CLI Tool Installation Script
+
 set -e
 
-echo "Installing Mira CLI tool for macOS..."
-echo
+echo "Installing Mira CLI tool..."
 
-# Check if running on macOS
-if [[ "$(uname)" != "Darwin" ]]; then
-    echo "Error: This tool is only for macOS"
-    exit 1
-fi
+# Build the project
+echo "Building project..."
+swift build --configuration release
 
-# Build the tool
-echo "Building the tool..."
-swift build -c release
+# Create /usr/local/bin if it doesn't exist
+sudo mkdir -p /usr/local/bin
 
-# Create bin directory if it doesn't exist
-mkdir -p /usr/local/bin
-
-# Copy the binary
-echo "Installing to /usr/local/bin/mira..."
-sudo cp .build/release/mira /usr/local/bin/mira
+# Copy the executable
+echo "Installing to /usr/local/bin..."
+sudo cp .build/release/mira /usr/local/bin/
 
 # Make it executable
 sudo chmod +x /usr/local/bin/mira
 
-echo
-echo "✓ Installation complete!"
-echo
-echo "You can now use the 'mira' command from anywhere."
+echo "✓ Mira CLI tool installed successfully!"
+echo ""
+echo "You can now use 'mira' from anywhere in your terminal."
 echo "Run 'mira help' to see available commands."
